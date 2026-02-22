@@ -1,22 +1,5 @@
 # RAG Chatbot - Question sur vos documents
 
-Un chatbot intelligent capable de répondre à des questions sur vos propres documents PDF,
-en utilisant la technique RAG (Retrieval-Augmented Generation).
-
-## Stack technique
-- **LangChain** — orchestration du pipeline RAG
-- **sentence-transformers** — génération des embeddings (100% local)
-- **ChromaDB** — base de données vectorielle
-- **Ollama + Mistral** — LLM local et gratuit
-- **PyMuPDF** — lecture des PDFs
-- **Streamlit** — interface utilisateur
-
-## Installation
-
-### 1. Cloner le repo
-markdown
-# RAG Chatbot - Question sur vos documents
-
 Chatbot local et gratuit capable de repondre a des questions sur vos propres documents PDF,
 en utilisant la technique RAG (Retrieval-Augmented Generation).
 Aucune donnee ne quitte votre machine.
