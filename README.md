@@ -10,17 +10,16 @@ Aucune donnee ne quitte votre machine.
 - Recherche semantique par le sens, pas seulement par mots-cles
 - Reponses generees localement sans API payante
 - Interface web simple via Streamlit
-- Sources citees dans chaque reponse
 
 ## Stack technique
 
 | Outil | Role |
 |---|---|
-| LangChain | Orchestration du pipeline RAG |
 | sentence-transformers | Generation des embeddings (100% local) |
-| ChromaDB | Base de donnees vectorielle |
+| FAISS | Base de donnees vectorielle |
 | Ollama + Mistral | LLM local et gratuit |
 | PyMuPDF | Lecture et extraction des PDFs |
+| LangChain | Chargement et decoupage des documents |
 | Streamlit | Interface utilisateur |
 
 ## Prerequis
@@ -32,38 +31,52 @@ Aucune donnee ne quitte votre machine.
 ## Installation
 
 ### 1. Cloner le repo
-
 ```bash
 git clone https://github.com/randydeploys/rag-project.git
 cd rag-project
 ```
 
-### 2. Créer et activer l'environnement virtuel
+### 2. Creer et activer l'environnement virtuel
 ```bash
 python -m venv venv
 venv\Scripts\activate
 ```
 
-
-### 3. Installer les dépendances
+### 3. Installer les dependances
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Installer Ollama
-Télécharger sur https://ollama.com puis lancer :
+### 4. Installer Ollama et le modele Mistral
+
+Telecharger sur https://ollama.com puis lancer :
 ```bash
 ollama pull mistral
 ```
 
 ## Utilisation
 
-## Structure du projet
+### 1. Ajouter vos PDFs
 
+Placez vos fichiers PDF dans le dossier `docs/`
+
+### 2. Indexer les documents
+```bash
+python ingest.py
+```
+
+### 3. Lancer le chatbot
+```bash
+streamlit run app.py
+```
+
+Ouvrez votre navigateur sur `http://localhost:8501`
+
+## Structure du projet
 ```
 rag-project/
 ├── docs/               -> vos PDFs
-├── db/                 -> base ChromaDB (generee automatiquement)
+├── db/                 -> base FAISS (generee automatiquement)
 ├── app.py              -> interface Streamlit
 ├── ingest.py           -> indexation des documents
 ├── rag.py              -> pipeline de recherche et reponse
