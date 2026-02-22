@@ -1,12 +1,7 @@
 # app.py
 import streamlit as st
 import os
-import pickle
-import faiss
-import numpy as np
-from sentence_transformers import SentenceTransformer
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pipeline import ingest_documents
 from rag import ask, load_db
 
 DOCS_FOLDER = "docs"
@@ -35,37 +30,17 @@ with st.sidebar:
     if uploaded_files and st.button("Indexer les documents"):
         with st.spinner("Indexation en cours..."):
             os.makedirs(DOCS_FOLDER, exist_ok=True)
+            pdf_paths = []
             for file in uploaded_files:
-                with open(os.path.join(DOCS_FOLDER, file.name), "wb") as f:
+                path = os.path.join(DOCS_FOLDER, file.name)
+                with open(path, "wb") as f:
                     f.write(file.read())
+                pdf_paths.append(path)
 
-            documents = []
-            for file in uploaded_files:
-                loader = PyMuPDFLoader(os.path.join(DOCS_FOLDER, file.name))
-                documents.extend(loader.load())
-
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=500,
-                chunk_overlap=50
-            )
-            chunks = splitter.split_documents(documents)
-
-            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-            texts = [chunk.page_content for chunk in chunks]
-            metadatas = [chunk.metadata for chunk in chunks]
-            embeddings = model.encode(texts, show_progress_bar=False)
-
-            os.makedirs(DB_FOLDER, exist_ok=True)
-            index = faiss.IndexFlatL2(embeddings.shape[1])
-            index.add(np.array(embeddings))
-            faiss.write_index(index, os.path.join(DB_FOLDER, "index.faiss"))
-
-            with open(os.path.join(DB_FOLDER, "texts.pkl"), "wb") as f:
-                pickle.dump({"texts": texts, "metadatas": metadatas}, f)
-
+            num_chunks = ingest_documents(pdf_paths)
             st.cache_resource.clear()
 
-        st.success(f"{len(chunks)} chunks indexés !")
+        st.success(f"{num_chunks} chunks indexés !")
 
     # Liste des PDFs indexés
     if os.path.exists(DOCS_FOLDER):
