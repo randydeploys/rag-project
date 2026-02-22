@@ -6,6 +6,9 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import ollama
 
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 DB_FOLDER = "db"
 
 def load_db():
@@ -22,14 +25,10 @@ def search(question, index, texts, k=7):
     return results
 
 def ask(question):
-    # 1. Charger la base
     index, texts, metadatas = load_db()
-
-    # 2. Chercher les chunks pertinents
     chunks = search(question, index, texts)
     context = "\n\n".join(chunks)
 
-    # 3. Construire le prompt
     prompt = f"""Tu es un assistant qui répond aux questions en te basant uniquement sur le contexte fourni.
 
 Contexte :
@@ -39,13 +38,18 @@ Question : {question}
 
 Réponds en français de manière précise et concise."""
 
-    # 4. Appeler Mistral via Ollama
     response = ollama.chat(
         model="mistral",
         messages=[{"role": "user", "content": prompt}]
     )
 
-    return response["message"]["content"]
+    # Extraire les noms de fichiers uniques
+    sources = list(set([
+        m.get("source", "inconnu").split("\\")[-1]
+        for m in metadatas
+    ]))
+
+    return response["message"]["content"], sources
 
 if __name__ == "__main__":
     print("Chatbot RAG - tape 'quit' pour quitter\n")

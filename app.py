@@ -1,8 +1,17 @@
 # app.py
 import streamlit as st
+import os
+import pickle
+import faiss
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from rag import ask, load_db
 
-# Configuration de la page
+DOCS_FOLDER = "docs"
+DB_FOLDER = "db"
+
 st.set_page_config(
     page_title="RAG Chatbot",
     page_icon="robot",
@@ -12,16 +21,97 @@ st.set_page_config(
 st.title("RAG Chatbot")
 st.caption("Posez vos questions sur vos documents PDF")
 
-# Charger la base une seule fois
+# Sidebar
+with st.sidebar:
+    st.header("Vos documents")
+
+    # Upload de PDFs
+    uploaded_files = st.file_uploader(
+        "Ajouter des PDFs",
+        type="pdf",
+        accept_multiple_files=True
+    )
+
+    if uploaded_files and st.button("Indexer les documents"):
+        with st.spinner("Indexation en cours..."):
+            os.makedirs(DOCS_FOLDER, exist_ok=True)
+            for file in uploaded_files:
+                with open(os.path.join(DOCS_FOLDER, file.name), "wb") as f:
+                    f.write(file.read())
+
+            documents = []
+            for file in uploaded_files:
+                loader = PyMuPDFLoader(os.path.join(DOCS_FOLDER, file.name))
+                documents.extend(loader.load())
+
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,
+                chunk_overlap=50
+            )
+            chunks = splitter.split_documents(documents)
+
+            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            texts = [chunk.page_content for chunk in chunks]
+            metadatas = [chunk.metadata for chunk in chunks]
+            embeddings = model.encode(texts, show_progress_bar=False)
+
+            os.makedirs(DB_FOLDER, exist_ok=True)
+            index = faiss.IndexFlatL2(embeddings.shape[1])
+            index.add(np.array(embeddings))
+            faiss.write_index(index, os.path.join(DB_FOLDER, "index.faiss"))
+
+            with open(os.path.join(DB_FOLDER, "texts.pkl"), "wb") as f:
+                pickle.dump({"texts": texts, "metadatas": metadatas}, f)
+
+            st.cache_resource.clear()
+
+        st.success(f"{len(chunks)} chunks indexés !")
+
+    # Liste des PDFs indexés
+    if os.path.exists(DOCS_FOLDER):
+        pdfs = [f for f in os.listdir(DOCS_FOLDER) if f.endswith(".pdf")]
+        if pdfs:
+            st.subheader("Documents indexés")
+            for pdf in pdfs:
+                st.write(f"- {pdf}")
+
+            # Supprimer un PDF
+            st.subheader("Supprimer un document")
+            pdf_to_delete = st.selectbox("Choisir un PDF", pdfs)
+            if st.button("Supprimer"):
+                os.remove(os.path.join(DOCS_FOLDER, pdf_to_delete))
+                st.success(f"{pdf_to_delete} supprimé !")
+                st.rerun()
+
+# Charger la base
 @st.cache_resource
 def init_db():
     return load_db()
 
-index, texts, metadatas = init_db()
+# Vérifier si des documents sont indexés
+docs_vides = not os.path.exists(DOCS_FOLDER) or not any(
+    f.endswith(".pdf") for f in os.listdir(DOCS_FOLDER)
+)
+db_vide = not os.path.exists(os.path.join(DB_FOLDER, "index.faiss"))
 
-# Historique de la conversation
+if docs_vides or db_vide:
+    st.info("Aucun document indexé. Ajoutez des PDFs dans le panneau de gauche et cliquez sur 'Indexer les documents'.")
+    st.stop()
+
+try:
+    index, texts, metadatas = init_db()
+except Exception as e:
+    st.error(f"Erreur lors du chargement de la base : {e}")
+    st.stop()
+
+# Historique
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+# Bouton vider historique
+if st.button("Vider l'historique"):
+    st.session_state.messages = []
+    st.rerun()
 
 # Afficher l'historique
 for message in st.session_state.messages:
@@ -30,15 +120,18 @@ for message in st.session_state.messages:
 
 # Zone de saisie
 if question := st.chat_input("Posez votre question..."):
-
-    # Afficher la question
     with st.chat_message("user"):
         st.markdown(question)
     st.session_state.messages.append({"role": "user", "content": question})
 
-    # Générer la réponse
     with st.chat_message("assistant"):
         with st.spinner("Recherche en cours..."):
-            reponse = ask(question)
+            reponse, sources = ask(question)
         st.markdown(reponse)
+
+        if sources:
+            with st.expander("Sources utilisees"):
+                for source in sources:
+                    st.write(f"- {source}")
+
     st.session_state.messages.append({"role": "assistant", "content": reponse})
