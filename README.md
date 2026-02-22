@@ -83,6 +83,12 @@ rag-project/
 └── requirements.txt    -> dependances du projet
 ```
 
+## Outils utilises
+
+- **Claude** — assistance technique
+- **Claude Code** — refactoring du code
+
 ## Auteur
 
 Randy - [GitHub](https://github.com/randydeploys)
+
