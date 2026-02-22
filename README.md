@@ -78,6 +78,7 @@ rag-project/
 ├── docs/               -> vos PDFs
 ├── db/                 -> base FAISS (generee automatiquement)
 ├── app.py              -> interface Streamlit
+├── pipeline.py         -> logique d'indexation partagee
 ├── ingest.py           -> indexation des documents
 ├── rag.py              -> pipeline de recherche et reponse
 └── requirements.txt    -> dependances du projet
